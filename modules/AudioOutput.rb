@@ -9,10 +9,4 @@ class AudioOutput
 		# state is captured in the url and desribes where the hardware should be
 		# attempt to make the change, then return any relevent information
 	end
-
-	def self.send_events(controller, uuid)
-		# pi_piper hookups to watch the pin
-		# sent the uuid to the controller when theres an event
-		# this has to be non-blocking, so if PiPiper.wait is required, it will be called at the bottom of nexus.rb
-	end
 end

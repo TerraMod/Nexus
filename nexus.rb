@@ -84,6 +84,7 @@ class Nexus < Sinatra::Base
 		status 404; return if row.size == 0
 		mod = row[0]
 		type = Module.const_get(mod[0])
+		status 501; return if !type.methods.include? :set_state
 		hardware = mod[1]
 		body type.set_state(hardware, state)
 		status 200

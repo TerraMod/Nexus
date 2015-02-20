@@ -11,9 +11,9 @@ Dir["./modules/*.rb"].each {|file| require file }
 
 class Nexus < Sinatra::Base
 
-	def self.report_modules(db, controller, tls_cert)
+	def self.report_modules(db, controller)
 		modules = {}
-		row = settings.db.execute "SELECT * FROM Modules;"
+		row = db.execute "SELECT * FROM Modules;"
 		row.each do |mod|
 			modules[mod[0]] = {
 				"name" => mod[1],
@@ -22,7 +22,7 @@ class Nexus < Sinatra::Base
 				"hardware" => mod[4]
 			}
 		end
-		return modules.to_json	# post these to the controller
+		return modules.to_json	# post these to the controller, secured to the event reciever...
 	end
 	
 	def self.log(file, line, fatal=false)
@@ -45,7 +45,6 @@ class Nexus < Sinatra::Base
 			log(log_file, "Unable to start NexusServer: #{e}", true)
 		end
 		
-		
 		config.params.each do |k, v|
 			if v.class == Hash
 				uuid = k
@@ -62,10 +61,15 @@ class Nexus < Sinatra::Base
 			end
 		end
 		
-		set :db, db
-	
-		report_modules(db, settings.controller, settings.tls_cert)
+		begin
+			report_modules(db, settings.controller)
+		rescue => e
+			log(log_file, "Error: could not report modules to controller: #{e}")
+		end
 		
+		set :db, db
+		set :log_file, log_file
+	
 	end
 
 	get '/modules' do
@@ -83,29 +87,70 @@ class Nexus < Sinatra::Base
 	end
 	
 	get '/query/:uuid' do |uuid|
-		modules = {}
 		row = settings.db.execute "SELECT class,hardware FROM Modules WHERE uuid=?;", [uuid]
-		status 404; return if row.size == 0
+		if row.size == 0
+			Nexus.log(settings.log_file, "Error: requested uuid #{uuid} was not found in the database")
+			status 404
+			return 
+		end
+		
 		mod = row[0]
-		type = Module.const_get(mod[0])
+		begin
+			type = Module.const_get(mod[0])
+		rescue NameError => e
+			Nexus.log(settings.log_file, "Error: hardware configured with class name #{mod[0]} but no class found")
+			status 501
+			return
+		end
+		
 		hardware = mod[1]
-		body type.query_state(hardware)
+		begin
+			body type.query_state(hardware)
+		rescue
+			Nexus.log(settings.log_file, "Error: hardware query error: #{e}")
+			status 501
+			return
+		end
+		
 		status 200
 	end
 	
 	get '/set/:uuid/:state' do |uuid, state|
 		row = settings.db.execute "SELECT class,hardware FROM Modules WHERE uuid=?;", [uuid]
-		status 404; return if row.size == 0
+		if row.size == 0
+			Nexus.log(settings.log_file, "Error: requested uuid #{uuid} was not found in the database")
+			status 404
+			return 
+		end
+		
 		mod = row[0]
-		type = Module.const_get(mod[0])
-		status 501; return if !type.methods.include? :set_state
+		begin
+			type = Module.const_get(mod[0])
+		rescue NameError => e
+			Nexus.log(settings.log_file, "Error: hardware configured with class name #{mod[0]} but no class found")
+			status 501
+			return
+		end
+		
+		if !type.methods.include? :set_state
+			Nexus.log(settings.log_file, "Error: module class #{mod[0]} does not implement setting a state")
+			status 501
+			return 
+		end
+		
 		hardware = mod[1]
-		body type.set_state(hardware, state)
+		begin
+			body type.set_state(hardware, state)
+		rescue => e
+			Nexus.log(settings.log_file, "Error: hardware set error: #{e}")
+		end
+		
+		Nexus.log(settings.log_file, "Set #{uuid} to #{state}")
 		status 200
 	end
 	
 end
 
-webserver = Thread.new{ Nexus.run! }
+#webserver = Thread.new{ Nexus.run! }
 #Thread.new( PiPiper.wait )
-webserver.join
+#webserver.join

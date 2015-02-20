@@ -1,6 +1,39 @@
-[2015-02-19 17:39:15] NexusServer starting...
-[2015-02-19 17:39:15] Unable to start NexusServer: goto fail
-[2015-02-19 17:43:33] NexusServer starting...
-[2015-02-19 17:43:33] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
-[2015-02-19 17:43:33] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
-[2015-02-19 17:43:33] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 17:49:45] NexusServer starting...
+[2015-02-19 17:49:45] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 17:49:45] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 17:49:45] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 17:49:45] Error reporting modules to controller: undefined method `db' for Nexus:Class
+[2015-02-19 17:50:34] NexusServer starting...
+[2015-02-19 17:50:34] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 17:50:34] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 17:50:34] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 17:56:05] NexusServer starting...
+[2015-02-19 17:56:05] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 17:56:05] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 17:56:05] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:11:17] NexusServer starting...
+[2015-02-19 19:11:17] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 19:11:17] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 19:11:17] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:12:21] NexusServer starting...
+[2015-02-19 19:12:21] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 19:12:21] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 19:12:21] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:12:50] NexusServer starting...
+[2015-02-19 19:12:50] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 19:12:50] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 19:12:50] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:12:53] Error: module class EntranceSensor does not implement setting a state
+[2015-02-19 19:19:29] NexusServer starting...
+[2015-02-19 19:19:29] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 19:19:29] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 19:19:29] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:20:03] NexusServer starting...
+[2015-02-19 19:20:03] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 19:20:03] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 19:20:03] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:20:18] NexusServer starting...
+[2015-02-19 19:20:18] Parsed module 934d38cc-8fd2-4ac3-9b4d-059712a7a08b: name => Bedroom Door, room => Bedroom, type => EntranceSensor, hardware => 16
+[2015-02-19 19:20:18] Parsed module eb036152-2bb0-4b4e-afc0-5b2de33584ba: name => Living Room Exterior Light, room => Living Room, type => LightSensor, hardware => 23
+[2015-02-19 19:20:18] Parsed module 24eeee13-a5a1-4e5c-b945-15f243fa5fa3: name => Living Room Speakers, room => Living Room, type => AudioOutput, hardware => /dev/audio0
+[2015-02-19 19:20:20] Error: module class EntranceSensor does not implement setting a state

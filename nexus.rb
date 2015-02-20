@@ -24,14 +24,27 @@ class Nexus < Sinatra::Base
 		end
 		return modules.to_json	# post these to the controller
 	end
+	
+	def self.log(file, line, fatal=false)
+		file.write "[#{Time.new.strftime("%Y-%m-%d %H:%M:%S")}] #{line}\n"
+		exit 1 if fatal
+	end
 
 	configure do
 		
-		config = ParseConfig.new "./nexus.conf"
-		db_flie = "/tmp/nexus_modules.db"
-		File.delete(db_flie) if File.exist?(db_flie)
-		db = SQLite3::Database.new db_flie
-		db.execute "CREATE TABLE Modules(uuid TEXT, name TEXT, class TEXT, room TEXT, hardware TEXT, UNIQUE(uuid));"
+		log_file = File.open("./nexus.log","a")
+		log(log_file, "NexusServer starting...")
+		
+		begin
+			config = ParseConfig.new "./nexus.conf"
+			db_flie = "/tmp/nexus_modules.db"
+			File.delete(db_flie) if File.exist?(db_flie)
+			db = SQLite3::Database.new db_flie
+			db.execute "CREATE TABLE Modules(uuid TEXT, name TEXT, class TEXT, room TEXT, hardware TEXT, UNIQUE(uuid));"
+		rescue => e
+			log(log_file, "Unable to start NexusServer: #{e}", true)
+		end
+		
 		
 		config.params.each do |k, v|
 			if v.class == Hash
@@ -41,6 +54,7 @@ class Nexus < Sinatra::Base
 				room = v['room']
 				hardware = v['hardware']
 				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?);", [uuid, name, type, room, hardware]
+				log(log_file, "Parsed module #{uuid}: name => #{name}, room => #{room}, type => #{type}, hardware => #{hardware}")
 				module_class = Module.const_get(type)
 				module_class.send_events(settings.controller, uuid) if module_class.methods.include? :send_events
 			else

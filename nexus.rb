@@ -66,6 +66,7 @@ class Nexus < Sinatra::Base
 				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?);", [uuid, name, type, room, hardware]
 				log(log_file, "Parsed module #{uuid}: name => #{name}, room => #{room}, type => #{type}, hardware => #{hardware}")
 				module_class = Module.const_get(type)
+				module_class.clear_state(hardware) if module_class.methods.include? :clear_state
 				module_class.send_events(uuid, hardware, event_queue) if module_class.methods.include? :send_events
 			else
 				set k.to_sym, v												# set all top level options in the configuration file in the class's settings

@@ -5,7 +5,7 @@ require 'parseconfig'
 require 'sqlite3'
 require 'json'
 require 'securerandom'
-require 'rest_client'
+require 'rest-client'
 require 'thread'
 #require 'pi_piper'
 Dir["./modules/*.rb"].each {|file| require file }
@@ -34,7 +34,7 @@ class Nexus < Sinatra::Base
 		# Every time the Nexus runs, it parses nexus.conf and populates a new SQLite database containing modules
 		# A rest client is created to do TLS client certificate authentication against the controller
 		# A thread is started to read from a queue and post the data to the controller with this client
-		# The queue is givel to all modules that implement send_event, so they can send callbacks
+		# The queue is given to all modules that implement send_event, so they can send callbacks
 		#
 		
 		log_file = File.open("./nexus.log","a")
@@ -46,38 +46,39 @@ class Nexus < Sinatra::Base
 			db_flie = "/tmp/nexus_modules.db"
 			File.delete(db_flie) if File.exist?(db_flie)
 			db = SQLite3::Database.new db_flie
-			db.execute "CREATE TABLE Modules(uuid TEXT, name TEXT, class TEXT, room TEXT, hardware TEXT, UNIQUE(uuid));"
+			db.execute "CREATE TABLE Modules(uuid TEXT, name TEXT, class TEXT, room TEXT, hardware TEXT, last_state TEXT, UNIQUE(uuid));"
 		rescue => e
 			log(log_file, "Unable to start NexusServer: #{e}", true)
 		end
 		
 		# Event queue recieves hashes to post to the controller.  See JSON Event wiki.
 		event_queue = Queue.new
-		modules = []
+		modules = {}
 		
 		config.params.each do |k, v|
 			if v.class == Hash
-				modules << {k => v}.tap {|mod| mod.delete('hardware')}		# add the module hash, except hardware, to the modules array to post to the controller
+				modules[k] = v.tap {|mod| mod.delete('hardware')}			# add the module hash, except hardware, to the modules array to post to the controller
 				uuid = k
 				name = v['name']
 				type = v['type']
 				room = v['room']
 				hardware = v['hardware']
-				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?);", [uuid, name, type, room, hardware]
+				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?,?);", [uuid, name, type, room, hardware, nil]
 				log(log_file, "Parsed module #{uuid}: name => #{name}, room => #{room}, type => #{type}, hardware => #{hardware}")
 				module_class = Module.const_get(type)
 				module_class.clear_state(hardware) if module_class.methods.include? :clear_state
-				module_class.send_events(uuid, hardware, event_queue) if module_class.methods.include? :send_events
+				module_class.watch_hardware(uuid, hardware, event_queue, db) if module_class.methods.include? :watch_hardware
 			else
 				set k.to_sym, v												# set all top level options in the configuration file in the class's settings
 			end
 		end
-                    
-		authenticated_client = RestClient::Resource.new("https://#{settings.controller}/report",
-                         :ssl_client_cert  =>  OpenSSL::X509::Certificate.new(File.read('./ssl/controller_client.pem')),
-                         :ssl_client_key   =>  OpenSSL::PKey::RSA.new(File.read('./ssl/controller_client.key'), ''),
-                         :verify_ssl       =>  OpenSSL::SSL::VERIFY_NONE)
-		event_queue << {"type" => "ModuleReport", "uuid" => settings.uuid, "contents" => modules}
+        
+		event_queue << {"type" => "ModuleReport", "uuid" => settings.uuid, "data" => modules}
+		
+		authenticated_client = RestClient::Resource.new("https://#{settings.controller}/event_reveiever")#,
+                         #:ssl_client_cert  =>  OpenSSL::X509::Certificate.new(File.read('./ssl/controller_client.pem')),
+                         #:ssl_client_key   =>  OpenSSL::PKey::RSA.new(File.read('./ssl/controller_client.key'), ''),
+                         #:verify_ssl       =>  OpenSSL::SSL::VERIFY_NONE)
 		
 		Thread.new{
 			data = event_queue.read
@@ -108,30 +109,11 @@ class Nexus < Sinatra::Base
 	
 	get '/query/:uuid' do |uuid|
 	
-		# Look up the uuid in the database, return 404 if it doesn't exist
-		row = settings.db.execute "SELECT class,hardware FROM Modules WHERE uuid=?;", [uuid]
-		if row.size == 0
-			Nexus.log(settings.log_file, "Error: requested uuid #{uuid} was not found in the database")
-			status 404
-			return 
-		end
-		
-		# Get the class name from the module's configuration.  See if it exists in the namespace and assign it to 'type'
-		mod = row[0]
 		begin
-			type = Module.const_get(mod[0])
-		rescue NameError => e
-			Nexus.log(settings.log_file, "Error: hardware configured with class name #{mod[0]} but no class found")
-			status 501
-			return
-		end
-		
-		# Run the class method '.query_state' on the class that this hardware implements, passing the hardware information from the configuration file
-		hardware = mod[1]
-		begin
-			body type.query_state(hardware)
+			last_state = settings.db.execute "SELECT last_state FROM modules WHERE uuid = ?;" [uuid]
+			return last_state[0]
 		rescue
-			Nexus.log(settings.log_file, "Error: hardware query error: #{e}")
+			Nexus.log(settings.log_file, "Error: db lookup error: #{e}")
 			status 501
 			return
 		end
@@ -161,7 +143,7 @@ class Nexus < Sinatra::Base
 		
 		# Make sure this hardware class actually allows for setting a state by checking for the '.set_state' method
 		if !type.methods.include? :set_state
-			Nexus.log(settings.log_file, "Error: module class #{mod[0]} does not implement setting a state")
+			Nexus.log(settings.log_file, "Error: module class #{mod[0]} does not implement set_state")
 			status 501
 			return 
 		end

@@ -1,6 +1,6 @@
 class MotionSensor
 
-	def self.watch_hardware(uuid, hardware, event_queue)
+	def self.watch_hardware(uuid, hardware, event_queue, db)
 		watch :pin => hardware do
 			event_queue << {"type" => "EventReport", "uuid" => uuid, "data" => "motion"}
 		end

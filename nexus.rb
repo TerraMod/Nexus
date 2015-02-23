@@ -7,9 +7,9 @@ require 'json'
 require 'securerandom'
 require 'rest-client'
 require 'thread'
-#require 'pi_piper'
+require 'pi_piper'
 Dir["./modules/*.rb"].each {|file| require file }
-#include PiPiper
+include PiPiper
 
 
 #
@@ -57,13 +57,13 @@ class Nexus < Sinatra::Base
 		
 		config.params.each do |k, v|
 			if v.class == Hash
-				modules[k] = v.tap {|mod| mod.delete('hardware')}			# add the module hash, except hardware, to the modules array to post to the controller
+				modules[k] = v
 				uuid = k
 				name = v['name']
 				type = v['type']
 				room = v['room']
 				hardware = v['hardware']
-				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?,?);", [uuid, name, type, room, hardware, nil]
+				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?,?);", [uuid, name, type, room, hardware, "none"]
 				log(log_file, "Parsed module #{uuid}: name => #{name}, room => #{room}, type => #{type}, hardware => #{hardware}")
 				module_class = Module.const_get(type)
 				module_class.clear_state(hardware) if module_class.methods.include? :clear_state
@@ -75,14 +75,17 @@ class Nexus < Sinatra::Base
         
 		event_queue << {"type" => "ModuleReport", "uuid" => settings.uuid, "data" => modules}
 		
-		authenticated_client = RestClient::Resource.new("https://#{settings.controller}/event_reveiever")#,
+		authenticated_client = RestClient::Resource.new("http://#{settings.controller}/event_reciever")#,
                          #:ssl_client_cert  =>  OpenSSL::X509::Certificate.new(File.read('./ssl/controller_client.pem')),
                          #:ssl_client_key   =>  OpenSSL::PKey::RSA.new(File.read('./ssl/controller_client.key'), ''),
                          #:verify_ssl       =>  OpenSSL::SSL::VERIFY_NONE)
 		
 		Thread.new{
-			data = event_queue.read
-			authenticated_client.post(data)
+			loop{
+				data = event_queue.pop
+				#puts data
+				authenticated_client.post(data.to_json)
+			}
 		}
 		
 		set :db, db
@@ -110,9 +113,9 @@ class Nexus < Sinatra::Base
 	get '/query/:uuid' do |uuid|
 	
 		begin
-			last_state = settings.db.execute "SELECT last_state FROM modules WHERE uuid = ?;" [uuid]
-			return last_state[0]
-		rescue
+			last_state = settings.db.execute "SELECT last_state FROM Modules WHERE uuid=?;", [uuid]
+			body last_state[0]
+		rescue => e
 			Nexus.log(settings.log_file, "Error: db lookup error: #{e}")
 			status 501
 			return

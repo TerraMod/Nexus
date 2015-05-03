@@ -75,19 +75,31 @@ class Nexus < Sinatra::Base
         
 		event_queue << {"type" => "ModuleReport", "uuid" => settings.uuid, "data" => modules}
 		
-		authenticated_client = RestClient::Resource.new("http://#{settings.controller}/event_reciever")#,
-                         #:ssl_client_cert  =>  OpenSSL::X509::Certificate.new(File.read('./ssl/controller_client.pem')),
-                         #:ssl_client_key   =>  OpenSSL::PKey::RSA.new(File.read('./ssl/controller_client.key'), ''),
-                         #:verify_ssl       =>  OpenSSL::SSL::VERIFY_NONE)
-		
+		# naive fix.  fallback to this if below doesn't work
+=begin
 		Thread.new{
 			loop{
-				data = event_queue.pop
-				#puts data
-				authenticated_client.post(data.to_json)
+				RestClient::Resource.new("http://#{settings.controller}/event_reciever").post(event_queue.pop.to_json)
+			}
+		}
+=end
+
+		# should fix the disconnect problem and only reconnect when broken
+		terramod_client = RestClient::Resource.new("http://#{settings.controller}/event_reciever")
+		Thread.new{
+			loop{
+				data = event_queue.pop.to_json
+				begin
+					terramod_client.post(data)
+				rescue
+					puts "restoring connection to terramod"
+					terramod_client = RestClient::Resource.new("http://#{settings.controller}/event_reciever")
+					terramod_client.post(data)
+				end
 			}
 		}
 		
+
 		set :db, db
 		set :log_file, log_file
 	

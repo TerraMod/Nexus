@@ -3,58 +3,51 @@
 require 'sinatra/base'
 require 'parseconfig'
 require 'sqlite3'
+require 'sequel'
 require 'json'
 require 'securerandom'
 require 'rest-client'
 require 'thread'
 require 'pi_piper'
-Dir["./modules/*.rb"].each {|file| require file }
+Dir["./modules/*.rb"].each { |file| require file }
 include PiPiper
-
-
-#
-# The Nexus Sinatra application serves hardware modules over a web api authenticated by TLS client certificates.
-# 
-# The modules/ directory contains Ruby classes that implement a piece of hardware.  See https://wiki.terramod.hkparker.com/ for information on module development.
-# The ssl/ directory contains certificates used to authenticate calls to the TerraMod controller as well as keys used to autheticate requets from the controller.
-#
 
 class Nexus < Sinatra::Base
 
-	# Log is for errors encoutered on start up or with using modules, not access logging
+	def self.report_event()
+		event = {
+			:type => "EventReport"
+		}
+		# post this
+	end
+	
+	def self.report_modules
+	
+	end
+		
+	helpers do
 
-	def self.log(file, line, fatal=false)
-		file.write "[#{Time.new.strftime("%Y-%m-%d %H:%M:%S")}] #{line}\n"
-		exit 1 if fatal
+		#prevent connections that come from anywhere but terramod
+
+
 	end
 
 	configure do
-		
-		#
-		# Every time the Nexus runs, it parses nexus.conf and populates a new SQLite database containing modules
-		# A rest client is created to do TLS client certificate authentication against the controller
-		# A thread is started to read from a queue and post the data to the controller with this client
-		# The queue is given to all modules that implement send_event, so they can send callbacks
-		#
-		
-		log_file = File.open("./nexus.log","a")
-		log(log_file, "NexusServer starting...")
-		
-		
-		begin
-			config = ParseConfig.new "./nexus.conf"
-			db_flie = "/tmp/nexus_modules.db"
-			File.delete(db_flie) if File.exist?(db_flie)
-			db = SQLite3::Database.new db_flie
-			db.execute "CREATE TABLE Modules(uuid TEXT, name TEXT, class TEXT, room TEXT, hardware TEXT, last_state TEXT, UNIQUE(uuid));"
-		rescue => e
-			log(log_file, "Unable to start NexusServer: #{e}", true)
+
+		# Parse configuration file, create database
+		config = ParseConfig.new "./nexus.conf"
+		db_flie = "nexus_modules.db"
+		File.delete(db_flie) if File.exist?("./#{db_flie}")
+		set :orm, Sequel.connect("sqlite://#{db_file}")
+		settings.orm.create_table :modules
+			String :uuid, :unique => true
+			String :class
+			String :name
+			String :room
 		end
-		
-		# Event queue recieves hashes to post to the controller.  See JSON Event wiki.
-		event_queue = Queue.new
+
+		# Populate database and send NexusReport
 		modules = {}
-		
 		config.params.each do |k, v|
 			if v.class == Hash
 				modules[k] = v
@@ -63,116 +56,53 @@ class Nexus < Sinatra::Base
 				type = v['type']
 				room = v['room']
 				hardware = v['hardware']
-				db.execute "INSERT INTO Modules VALUES(?,?,?,?,?,?);", [uuid, name, type, room, hardware, "none"]
-				log(log_file, "Parsed module #{uuid}: name => #{name}, room => #{room}, type => #{type}, hardware => #{hardware}")
+				settings.orm[:modules].insert(
+					:uuid => uuid,
+					:class => type,
+					:name => name,
+					:room => room
+				)
 				module_class = Module.const_get(type)
-				module_class.clear_state(hardware) if module_class.methods.include? :clear_state
-				module_class.watch_hardware(uuid, hardware, event_queue, db) if module_class.methods.include? :watch_hardware
+				module_class.setup(settings.orm, uuid, hardware)
 			else
-				set k.to_sym, v												# set all top level options in the configuration file in the class's settings
+				set k.to_sym, v
 			end
 		end
-        
-		event_queue << {"type" => "ModuleReport", "uuid" => settings.uuid, "data" => modules}
-		
-		# naive fix.  fallback to this if below doesn't work
-=begin
-		Thread.new{
-			loop{
-				RestClient::Resource.new("http://#{settings.controller}/event_reciever").post(event_queue.pop.to_json)
-			}
-		}
-=end
+		report_modules#event {"type" => "NexusReport", "uuid" => settings.uuid, "data" => modules}
 
-		# should fix the disconnect problem and only reconnect when broken
-		terramod_client = RestClient::Resource.new("http://#{settings.controller}/event_reciever")
-		Thread.new{
-			loop{
-				data = event_queue.pop.to_json
-				begin
-					terramod_client.post(data)
-				rescue
-					puts "restoring connection to terramod"
-					terramod_client = RestClient::Resource.new("http://#{settings.controller}/event_reciever")
-					terramod_client.post(data)
-				end
-			}
-		}
-		
+		# Provide reference to report_event
+		set :report_event, self.method(:report_event)
 
-		set :db, db
-		set :log_file, log_file
-	
 	end
 
 	get '/modules' do
-	
-		# Create a hash of the modules in the database, serialize to JSON
-	
+
 		modules = {}
-		row = settings.db.execute "SELECT * FROM Modules;"
-		row.each do |mod|
-			modules[mod[0]] = {
-				"name" => mod[1],
-				"class" => mod[2],
-				"room" => mod[3],
-				"hardware" => mod[4]
+		settings.orm[:modules].each do |mod|
+			modules[mod[:uuid]] = {
+				"class" => mod[:class],
+				"name" => mod[:name],
+				"room" => mod[:room]
 			}
 		end
 		return modules.to_json
+
 	end
-	
-	get '/query/:uuid' do |uuid|
-	
-		begin
-			last_state = settings.db.execute "SELECT last_state FROM Modules WHERE uuid=?;", [uuid]
-			body last_state[0]
-		rescue => e
-			Nexus.log(settings.log_file, "Error: db lookup error: #{e}")
-			status 501
-			return
-		end
-		
-		status 200
+
+	post '/rename' do
+		# uuid
+		# name
+		# room
 	end
-	
-	get '/set/:uuid/:state' do |uuid, state|
-	
-		# Look up the uuid in the database, return 404 if it doesn't exist
-		row = settings.db.execute "SELECT class,hardware FROM Modules WHERE uuid=?;", [uuid]
-		if row.size == 0
-			Nexus.log(settings.log_file, "Error: requested uuid #{uuid} was not found in the database")
-			status 404
-			return 
-		end
-		
-		# Get the class name from the module's configuration.  See if it exists in the namespace and assign it to 'type'
-		mod = row[0]
-		begin
-			type = Module.const_get(mod[0])
-		rescue NameError => e
-			Nexus.log(settings.log_file, "Error: hardware configured with class name #{mod[0]} but no class found")
-			status 501
-			return
-		end
-		
-		# Make sure this hardware class actually allows for setting a state by checking for the '.set_state' method
-		if !type.methods.include? :set_state
-			Nexus.log(settings.log_file, "Error: module class #{mod[0]} does not implement set_state")
-			status 501
-			return 
-		end
-		
-		# Attempt to set the state of the hardware
-		hardware = mod[1]
-		begin
-			body type.set_state(hardware, state)
-		rescue => e
-			Nexus.log(settings.log_file, "Error: hardware set error: #{e}")
-		end
-		
-		status 200
-		
+
+	get '/functions/:module_uuid' do |module_uuid|
+		# return the public class methods of that module's type except .setup
 	end
-	
+
+	post '/call'
+		# uuid
+		# function
+		# arguments
+	end
+
 end

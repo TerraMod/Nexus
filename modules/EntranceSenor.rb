@@ -1,16 +1,37 @@
 class EntranceSensor
 
-	def self.watch_hardware(uuid, hardware, event_queue, db)
-		watch :pin => hardware do |pin|
-			value = pin.read
-			value = "closed" if value == 1
-			value = "opened" if value == 0
-			event_queue << {"type" => "EventReport", "uuid" => uuid, "data" => value}
-			db.execute "UPDATE Modules SET last_state=? WHERE uuid=?;", [value, uuid]
+	def self.setup(orm, uuid, hardware)
+
+		# Clear this individual pin
+		system "echo #{hardware} > /sys/class/gpio/unexport"
+
+		# Create the entrance sensor table if needed
+		if !orm.table_exists? :entrancesensors
+			orm.create_table :entrancesensors do
+				String :uuid
+				String :state
+				String :last_change
+			end
 		end
+
+		# Watch this individual pin and save changes
+		watch :pin => hardware do |pin|
+			state = pin.read == 1 ? "closed" : "open"
+			send_event(uuid, state)
+			orm[:entrancesensors].replace(
+				:uuid => uuid,
+				:state => state,
+				:last_change => Time.new.strftime("%Y-%m-%d %H:%M:%S")
+			)
+		end
+
 	end
 	
-	def self.clear_state(hardware)
-		system "echo #{hardware} > /sys/class/gpio/unexport"
+	def get_state(uuid)
+		orm[:entrancesensors].where(:uuid => uuid).first[:state]
+	end
+	
+	def last_activity
+	
 	end
 end

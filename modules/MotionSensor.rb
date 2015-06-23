@@ -9,4 +9,8 @@ class MotionSensor
 	def self.clear_state(hardware)
 		system "echo #{hardware} > /sys/class/gpio/unexport"
 	end
+	
+	def last_motion
+	
+	end
 end

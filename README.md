@@ -1,7 +1,7 @@
 Nexus
 =====
 
-Nexus is an application that runs on Raspberry Pis and POSTs changes to GPIO states, as well as serves GPIO states over a web API.  It is part of the TerraMod home automation project.
+Nexus is an application for Raspiberry Pi that connects the Pi's GPIO to the [TerraMod](https://github.com/TerraMod/TerraMod) home automation framework.
 
 License
 -------
